@@ -1,16 +1,4 @@
-# -*- coding: utf-8 -*-
-# <nbformat>3.0</nbformat>
-
-# <markdowncell>
-
-# ## Тестируем возможности loopy
-# 
-# $c_{ij} = \sum_{k} a_{ik} b_{kj}$
-# 
-# - Разобраться с запуском **ядра** (kernel)
-# - Выяснить, на чем запускается код
-
-# <codecell>
+#!/home/earendilllock/tmp/epd-7.3-2-rh5-x86_64/bin/python
 
 import numpy as np
 import numpy.linalg as la
@@ -18,7 +6,6 @@ import pyopencl as cl
 import pyopencl.array as cl_array
 import loopy as lp
 
-# <codecell>
 
 def right_u(ctx):
     order = "C"
@@ -37,26 +24,20 @@ def right_u(ctx):
             lp.GlobalArg("f", dtype, shape=(n, r), order=order),
             ],
             name="pravaya")
-    knl = lp.split_iname(knl, "i", 16,outer_tag="g.0", inner_tag="l.0")
-    knl = lp.split_iname(knl, "s", 3, outer_tag = "l.1")
+    knl = lp.split_iname(knl, "i", 2,outer_tag = "g.0", inner_tag="l.1")
+
+    knl = lp.split_iname(knl, "s", r, outer_tag = "g.1", inner_tag = "l.0")
     knl = lp.split_iname(knl, "j", 16)
     knl = lp.split_iname(knl, "k", 16) #,16,outer_tag="g.2", inner_tag="l.2")
+#    knl = lp.add_prefetch(knl, "a", ["k_inner","j_inner", "i_inner"])
+    knl = lp.add_prefetch(knl, "v", ["s_inner", "j_inner"])
+    knl = lp.add_prefetch(knl, "w", ["s_inner", "k_inner"])
+    #knl = lp.add_prefetch(knl, "a", ["k_inner", "j_inner"])
+    #knl = lp.add_prefetch(knl, "a", ["k_inner", "i_inner"])
     seq_knl = knl
     return knl
 
 
-# <markdowncell>
-
-# # Наблюдения
-# ```
-# read_and_written_args = ( knl.get_read_variables() & knl.get_written_variables() & set(knl.arg_dict))
-# ```  
-# Проверяет, нет ли аргументов, которые изменяются внутри kernel
-# 
-# Ура, мы получили OpenCL код (и видимо даже скомпилировали).  
-# Теперь нужно выяснить, как же его запустить
-
-# <codecell>
 
 plt = cl.get_platforms()
 nvidia_plat = plt[0]
@@ -64,12 +45,9 @@ ctx = cl.Context(nvidia_plat.get_devices())
 knl = right_u(ctx)
 queue = cl.CommandQueue(ctx,properties=cl.command_queue_properties.PROFILING_ENABLE)
 cknl = lp.CompiledKernel(ctx, knl)
-
-# <codecell>
-
 cknl.print_code()
 
-# <codecell>
+
 
 n = 128
 r = 3
@@ -84,14 +62,39 @@ a = a.astype(np.float32)
 v = v.astype(np.float32)
 w = w.astype(np.float32)
 parameters = {"a" : a, "v": v, "w" : w} 
+knl_gen = lp.generate_loop_schedules(knl)
+ref_compiled = lp.CompiledKernel(ctx,knl_gen,options=[],codegen_kwargs={})
+
+a1 = cl_array.to_device(queue,a)
+v1 = cl_array.to_device(queue,v)
+w1 = cl_array.to_device(queue,w)
+f = cl_array.to_device(queue,f)
+qq = {"a":a1,"v":v1,"w":w1,'f':f}
+
+from pymbolic import evaluate
+kk = {}
+for arg in knl.args:
+    kk[arg.name] = qq[arg.name].astype(arg.dtype)
 
 import time
+
 t1 = time.time()
-evt, (f) = cknl(queue, **parameters)
+for i in xrange(0,100):
+    t1 = time.time()
+    frfr = ref_compiled(queue,**kk)
 
-print time.time() - t1
+    eve=frfr[0]
+    eve.wait()
 
-# <codecell>
+    print time.time() - t1
+
+#import time
+#t1 = time.time()
+#evt, (f) = cknl(queue, **parameters)
+
+#print time.time() - t1
+
+
 
 #fuu=zeros((n,r))
 #for i in xrange (0,n):
