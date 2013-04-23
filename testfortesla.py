@@ -31,7 +31,7 @@ def test_nbody(ctx):
 plt = cl.get_platforms()
 nvidia_plat = plt[0]
 ctx = cl.Context(nvidia_plat.get_devices())
-knl = test_nbody1(ctx)
+knl = test_nbody(ctx)
 queue = cl.CommandQueue(ctx,properties=cl.command_queue_properties.PROFILING_ENABLE)
 cknl = lp.CompiledKernel(ctx, knl)
 
