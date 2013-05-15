@@ -9,7 +9,7 @@ import loopy as lp
 
 def LU_decomposition(ctx):
   order='C'
-  dtype = np.float64
+  dtype = np.float32
   knl = lp.make_kernel(ctx.devices[0], 
   [
     "{[k,i]: 0<=k<n-1 and k+1<=i<n}",
@@ -35,7 +35,7 @@ def LU_decomposition(ctx):
 
 def LU_solver(ctx):
   order='C'
-  dtype = np.float64
+  dtype = np.float32
   knl = lp.make_kernel(ctx.devices[0], 
   [
     
@@ -55,7 +55,7 @@ def LU_solver(ctx):
   lp.ValueArg("r", np.int64),
   ],
   assumptions="n>=1")
-  knl = lp.split_iname(knl, "k", n)
+  knl = lp.split_iname(knl, "k", 1)
   knl = lp.split_iname(knl, "i", 32)
   knl = lp.split_iname(knl, "j", 32)
   knl = lp.split_iname(knl, "l", 32)
@@ -65,7 +65,7 @@ def LU_solver(ctx):
   return knl
 def Prav_U(ctx):
   order='C'
-  dtype = np.float64
+  dtype = np.float32
   knl = lp.make_kernel(ctx.devices[0], 
   [
     
@@ -93,7 +93,7 @@ def Prav_U(ctx):
 
 def Prav_V(ctx):
   order='C'
-  dtype = np.float64
+  dtype = np.float32
   knl = lp.make_kernel(ctx.devices[0], 
   [
     
@@ -121,7 +121,7 @@ def Prav_V(ctx):
 
 def Prav_V(ctx):
   order='C'
-  dtype = np.float64
+  dtype = np.float32
   knl = lp.make_kernel(ctx.devices[0], 
   [
     
@@ -149,7 +149,7 @@ def Prav_V(ctx):
 
 def Prav_W(ctx):
   order='C'
-  dtype = np.float64
+  dtype = np.float32
   knl = lp.make_kernel(ctx.devices[0], 
   [
     
@@ -178,7 +178,7 @@ def Prav_W(ctx):
 
 def left_U(ctx):
   order='C'
-  dtype = np.float64
+  dtype = np.float32
   knl = lp.make_kernel(ctx.devices[0], 
   [
     
@@ -189,7 +189,7 @@ def left_U(ctx):
     "l[alpha,alpha1]=sum((j), v[j,alpha]*v[j,alpha1])*sum((k),w[k,alpha]*w[k,alpha1])",
   ],
   [
-   
+
     lp.GlobalArg("v", dtype, shape="n, r", order=order),
     lp.GlobalArg("w", dtype, shape="n, r", order=order),
     lp.GlobalArg("l", dtype, shape="r, r", order=order),
@@ -206,7 +206,7 @@ def left_U(ctx):
 
 def left_V(ctx):
   order='C'
-  dtype = np.float64
+  dtype = np.float32
   knl = lp.make_kernel(ctx.devices[0], 
   [
     
@@ -217,7 +217,7 @@ def left_V(ctx):
     "l[alpha,alpha1]=sum((i), u[i,alpha]*u[i,alpha1])*sum((k),w[k,alpha]*w[k,alpha1])",
   ],
   [
-    
+
     lp.GlobalArg("u", dtype, shape="n, r", order=order),
     lp.GlobalArg("w", dtype, shape="n, r", order=order),
     lp.GlobalArg("l", dtype, shape="r, r", order=order),
@@ -234,7 +234,7 @@ def left_V(ctx):
 
 def left_W(ctx):
   order='C'
-  dtype = np.float64
+  dtype = np.float32
   knl = lp.make_kernel(ctx.devices[0], 
   [
     
@@ -245,7 +245,7 @@ def left_W(ctx):
     "l[alpha,alpha1]=sum((i), u[i,alpha]*u[i,alpha1])*sum((j),v[j,alpha]*v[j,alpha1])",
   ],
   [
-    
+
     lp.GlobalArg("v", dtype, shape="n, r", order=order),
     lp.GlobalArg("u", dtype, shape="n, r", order=order),
     lp.GlobalArg("l", dtype, shape="r, r", order=order),
@@ -262,7 +262,7 @@ def left_W(ctx):
 
 def get_tensor(ctx):
   order='C'
-  dtype = np.float64
+  dtype = np.float32
   knl = lp.make_kernel(ctx.devices[0], 
   [
     
@@ -288,22 +288,6 @@ def get_tensor(ctx):
   
   return knl
 
-def solve_it(n,r,ctx,a,b):
-      bcopy=b.copy()
-     
-      decompose_knl = LU_decomposition(ctx)
-      queue = cl.CommandQueue(ctx,properties=cl.command_queue_properties.PROFILING_ENABLE)
-      cknl = lp.CompiledKernel(ctx, decompose_knl)
-      parameters = {"syst": a, "n": r}
-      evt, (LU) = cknl(queue, **parameters)
-      
-      LU=LU[0].astype(np.float64)
-      solve_knl= LU_solver(ctx)
-      queue = cl.CommandQueue(ctx,properties=cl.command_queue_properties.PROFILING_ENABLE)
-      cknl = lp.CompiledKernel(ctx, solve_knl)
-      parameters = {"LU": LU, "bcopy": bcopy,"n":r, "r":n}
-      evt, (c) = cknl(queue, **parameters)
-      return c[0].get().transpose().astype(np.float64).copy()
 
 n=128
 r=3
@@ -343,9 +327,9 @@ queue = cl.CommandQueue(ctx,properties=cl.command_queue_properties.PROFILING_ENA
 
 
 
-v = np.random.randn(n, r).astype(np.float64)
-w = np.random.randn(n, r).astype(np.float64)
-u = np.random.randn(n, r).astype(np.float64)
+v = np.random.randn(n, r).astype(np.float32)
+w = np.random.randn(n, r).astype(np.float32)
+u = np.random.randn(n, r).astype(np.float32)
 ulist=list(arange(d))
 ulist[0]=u.copy()
 ulist[1]=v.copy()
@@ -358,132 +342,74 @@ evt, (f) = cknl_get_tensor(queue, **parameters)
 a1 = f[0].get()
 a = f[0]
 a2=cl.array.to_device(queue,a1)
-#v = np.random.randn(n, r).astype(np.float64).copy()
-#w = np.random.randn(n, r).astype(np.float64).copy()
-#u = np.random.randn(n, r).astype(np.float64).copy()
-queue = cl.CommandQueue(ctx,properties=cl.command_queue_properties.PROFILING_ENABLE)
 
-#u2=cl.array.to_device(queue,u.copy())
-#v2=cl.array.to_device(queue,v.copy())
-#w2=cl.array.to_device(queue,w.copy())
-
+#queue = cl.CommandQueue(ctx,properties=cl.command_queue_properties.PROFILING_ENABLE)
+prav1=zeros((r,n)).astype(np.float32)
+prav=cl.array.to_device(queue,prav1)
+left1=zeros((r,r)).astype(np.float32)
+left=cl.array.to_device(queue,left1)
+v = np.random.randn(n, r).astype(np.float32)
+w = np.random.randn(n, r).astype(np.float32)
+u = np.random.randn(n, r).astype(np.float32)
+u2=cl.array.to_device(queue,u)
+v2=cl.array.to_device(queue,v)
+w2=cl.array.to_device(queue,w)
 for trtrtr in xrange(10):
-    k=k+1
-    t=time.time()
-    #################-------U-part---------################
-    
-    queue = cl.CommandQueue(ctx,properties=cl.command_queue_properties.PROFILING_ENABLE)
-    parameters = {"a" : a2, "v": v2, "w" : w2, "n":n,"r":r} 
-    evt, (prav) = cknl_r_U(queue, **parameters)
-    evt.wait()
-    prav=prav[0]
-    ch_r=rights(a1,ulist,dimension,d,r,0) 
-    print la.norm(prav.get()-ch_r.transpose())
+  parameters={"a":a2,"v":v2,"w":w2,"n":n,"r":r,"f":prav}
+  evt =  cknl_r_U(queue, **parameters)[0]
+  
+  parameters={"v": v2, "w" : w2, "n":n,"r":r,"l":left}
+  evt= cknl_l_U(queue,**parameters)[0]
+  left2=left.get().copy()
+  
+  
+  parameters={"syst":left,"n":r}
+  evt= cknl_decompose(queue,**parameters)[0]
  
-    
-    queue = cl.CommandQueue(ctx,properties=cl.command_queue_properties.PROFILING_ENABLE)
-    parameters = {"a" : a2, "v": v2, "w" : w2, "n":n,"r":r} 
-    evt, (left) = cknl_l_U(queue, **parameters)
-    evt.wait()
-    left=left[0].get()
-    queue = cl.CommandQueue(ctx,properties=cl.command_queue_properties.PROFILING_ENABLE)
-    ch_l=lefts(ulist,0,d,r)
-    print la.norm(left-ch_l)
-    parameters = {"syst": left, "n": r}
-    evt, (LU) = cknl_decompose(queue, **parameters)
-    evt.wait()
-    #LU=LU[0].get().astype(np.float64)
-    queue = cl.CommandQueue(ctx,properties=cl.command_queue_properties.PROFILING_ENABLE)
-    parameters = {"LU": LU[0], "bcopy": prav.get(),"n":r, "r":n}
-    evt, (c) = cknl_solve(queue, **parameters)
-    evt.wait()
-    unew=solve(ch_l,ch_r.transpose()).transpose()
-    
-    ulist[0]=unew.copy()
-    u2=cl.array.to_device(queue,c[0].transpose().copy())
-    print "u",la.norm(ulist[0]-u2.get())
-    ###################-------V-part----------##############
-    
-    
-    queue = cl.CommandQueue(ctx,properties=cl.command_queue_properties.PROFILING_ENABLE)
-    parameters = {"a" : a2, "u": u2, "w" : w2, "n":n,"r":r} 
-    evt, (prav) = cknl_r_V(queue, **parameters)
-    evt.wait()
-    prav=prav[0]
-    ch_r=rights(a1,ulist,dimension,d,r,1) 
-    print la.norm(prav.get()-ch_r.transpose())
-    #    
-    #
-    #
-    queue = cl.CommandQueue(ctx,properties=cl.command_queue_properties.PROFILING_ENABLE)
-    parameters = {"a" : a2, "u": u2, "w" : w2, "n":n,"r":r} 
-    evt, (left) = cknl_l_V(queue, **parameters)
-    evt.wait()
-    left=left[0].get()
-    ch_l=lefts(ulist,1,d,r)
-    print la.norm(left-ch_l)
-        
-    #v=solve_it(n,r,ctx,left,prav)
-    queue = cl.CommandQueue(ctx,properties=cl.command_queue_properties.PROFILING_ENABLE)
-    parameters = {"syst": left, "n": r}
-    evt, (LU) = cknl_decompose(queue, **parameters)
-    evt.wait()
-    #LU=LU[0].get().astype(np.float64)
-    queue = cl.CommandQueue(ctx,properties=cl.command_queue_properties.PROFILING_ENABLE)
-    parameters = {"LU": LU[0], "bcopy": prav.get(),"n":r, "r":n}
-    evt, (c) = cknl_solve(queue, **parameters)
-    evt.wait()
-    v2=cl.array.to_device(queue,c[0].transpose().copy())
-    unew=solve(ch_l,ch_r.transpose()).transpose()
-    
-    ulist[1]=unew.copy()
-    print "v",la.norm(ulist[1]-v2.get())
-    #
-    #####################------ W-part-------##############
-    #
-    t2=time.time()
-    queue = cl.CommandQueue(ctx,properties=cl.command_queue_properties.PROFILING_ENABLE)
-    parameters = {"a" : a2, "v": v2, "u" : u2, "n":n,"r":r} 
-
-    evt, (prav) = cknl_r_W(queue, **parameters)
-    evt.wait()
-    prav=prav[0]
-    ch_r=rights(a1,ulist,dimension,d,r,2) 
-    print la.norm(prav.get()-ch_r.transpose())     
-    
-    queue = cl.CommandQueue(ctx,properties=cl.command_queue_properties.PROFILING_ENABLE)
-    parameters = {"a" : a2, "v": v2, "u" : u2, "n":n,"r":r} 
-    evt, (left) = cknl_l_W(queue, **parameters)
-    evt.wait()
-    left=left[0].get()
-
-    ch_l=lefts(ulist,2,d,r)
-    print la.norm(left-ch_l)        
-#    w=solve_it(n,r,ctx,left,prav)
-    queue = cl.CommandQueue(ctx,properties=cl.command_queue_properties.PROFILING_ENABLE)
-    parameters = {"syst": left, "n": r}
-    evt, (LU) = cknl_decompose(queue, **parameters)
-    evt.wait()
-    #LU=LU[0].get().astype(np.float64)
-    queue = cl.CommandQueue(ctx,properties=cl.command_queue_properties.PROFILING_ENABLE)
-    parameters = {"LU": LU[0], "bcopy": prav.get(),"n":r, "r":n}
-    evt, (c) = cknl_solve(queue, **parameters)
-    evt.wait()
-    w2=cl.array.to_device(queue,c[0].transpose().copy())
-    
-    unew=solve(ch_l,ch_r.transpose()).transpose()
-    
-    ulist[2]=unew.copy()
-    print "w",la.norm(ulist[2]-w2.get())
-    #
-############################
-    queue = cl.CommandQueue(ctx,properties=cl.command_queue_properties.PROFILING_ENABLE)
-    parameters = {"v": v2, "w" : w2, "u": u2, "n":n,"r":r} 
-    evt, (aaa) = cknl_get_tensor(queue, **parameters)
-    evt.wait()
-    tmp=aaa[0].get()
-    a2=cl.array.to_device(queue,tmp)
+  prav2=prav.copy()
+  parameters={"LU":left,"bcopy":prav,"n":r,"r":n}
+  evt,(f)=cknl_solve(queue,**parameters)
+  
+  f=f[0].get().transpose().copy()
+  u2=cl.array.to_device(queue,f)
+##########################----V-----################
+  parameters={"a":a2,"u":u2,"w":w2,"n":n,"r":r,"f":prav}
+  evt =  cknl_r_V(queue, **parameters)[0]
+  
+  parameters={"u": u2, "w" : w2, "n":n,"r":r,"l":left}
+  evt= cknl_l_V(queue,**parameters)[0]
+  left2=left.get().copy()
+  
+  
+  parameters={"syst":left,"n":r}
+  evt= cknl_decompose(queue,**parameters)[0]
  
-    t=time.time()-t
-    print la.norm(a2.get()-a1).astype(float64)/la.norm(a1)
-
+  prav2=prav.copy()
+  parameters={"LU":left,"bcopy":prav,"n":r,"r":n}
+  evt,(f)=cknl_solve(queue,**parameters)
+  
+  f=f[0].get().transpose().copy()
+  v2=cl.array.to_device(queue,f)  
+##########################--------W-----------###########
+  parameters={"a":a2,"v":v2,"u":u2,"n":n,"r":r,"f":prav}
+  evt =  cknl_r_W(queue, **parameters)[0]
+  
+  parameters={"v": v2, "u" : u2, "n":n,"r":r,"l":left}
+  evt= cknl_l_W(queue,**parameters)[0]
+  left2=left.get().copy()
+  
+  
+  parameters={"syst":left,"n":r}
+  evt= cknl_decompose(queue,**parameters)[0]
+ 
+  prav2=prav.copy()
+  parameters={"LU":left,"bcopy":prav,"n":r,"r":n}
+  evt,(f)=cknl_solve(queue,**parameters)
+  
+  f=f[0].get().transpose().copy()
+  w2=cl.array.to_device(queue,f)
+######################----Norma-------------###########
+  parameters = {"v": v2, "w" : w2, "u": u2, "n":n,"r":r} 
+  evt, (f) = cknl_get_tensor(queue, **parameters)
+  norm=la.norm(a1-f[0].get())
+  print norm
