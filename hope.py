@@ -358,6 +358,14 @@ evt, (f) = cknl_get_tensor(queue, **parameters)
 a1 = f[0].get()
 a = f[0]
 a2=cl.array.to_device(queue,a1)
+v = np.random.randn(n, r).astype(np.float64).copy()
+w = np.random.randn(n, r).astype(np.float64).copy()
+u = np.random.randn(n, r).astype(np.float64).copy()
+queue = cl.CommandQueue(ctx,properties=cl.command_queue_properties.PROFILING_ENABLE)
+
+u2=cl.array.to_device(queue,u.copy())
+v2=cl.array.to_device(queue,v.copy())
+w2=cl.array.to_device(queue,w.copy())
 
 for trtrtr in xrange(10):
     k=k+1
@@ -477,5 +485,5 @@ for trtrtr in xrange(10):
     a2=cl.array.to_device(queue,tmp)
  
     t=time.time()-t
-    print la.norm(a2.get()-gettensor(ulist,r,dimension,d)).astype(float64)
+    print la.norm(a2.get()-a1).astype(float64)
 
