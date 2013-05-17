@@ -58,10 +58,10 @@ def LU_solver(ctx):
   knl = lp.split_iname(knl, "k", 1)
   knl = lp.split_iname(knl, "i", 32)
   knl = lp.split_iname(knl, "j", 32)
-  knl = lp.split_iname(knl, "l", 32)
+  knl = lp.split_iname(knl, "l", 32, outer_tag="g.0", inner_tag="l.0")
 
 #  print knl
-#  print lp.CompiledKernel(ctx, knl).get_highlighted_code()   
+  print lp.CompiledKernel(ctx, knl).get_highlighted_code()   
   return knl
 def Prav_U(ctx):
   order='C'
@@ -354,7 +354,9 @@ u = np.random.randn(n, r).astype(np.float32)
 u2=cl.array.to_device(queue,u)
 v2=cl.array.to_device(queue,v)
 w2=cl.array.to_device(queue,w)
-for trtrtr in xrange(10):
+import time
+for trtrtr in xrange(100):
+  t=time.time()
   parameters={"a":a2,"v":v2,"w":w2,"n":n,"r":r,"f":prav}
   evt =  cknl_r_U(queue, **parameters)[0]
   
@@ -368,9 +370,10 @@ for trtrtr in xrange(10):
  
   prav2=prav.copy()
   parameters={"LU":left,"bcopy":prav,"n":r,"r":n}
-  evt,(f)=cknl_solve(queue,**parameters)
+  evt=cknl_solve(queue,**parameters)[0]
   
-  f=f[0].get().transpose().copy()
+  f=prav.get().transpose().copy()
+  
   u2=cl.array.to_device(queue,f)
 ##########################----V-----################
   parameters={"a":a2,"u":u2,"w":w2,"n":n,"r":r,"f":prav}
@@ -386,9 +389,9 @@ for trtrtr in xrange(10):
  
   prav2=prav.copy()
   parameters={"LU":left,"bcopy":prav,"n":r,"r":n}
-  evt,(f)=cknl_solve(queue,**parameters)
+  evt=cknl_solve(queue,**parameters)[0]
   
-  f=f[0].get().transpose().copy()
+  f=prav.get().transpose().copy()
   v2=cl.array.to_device(queue,f)  
 ##########################--------W-----------###########
   parameters={"a":a2,"v":v2,"u":u2,"n":n,"r":r,"f":prav}
@@ -404,12 +407,14 @@ for trtrtr in xrange(10):
  
   prav2=prav.copy()
   parameters={"LU":left,"bcopy":prav,"n":r,"r":n}
-  evt,(f)=cknl_solve(queue,**parameters)
+  evt=cknl_solve(queue,**parameters)[0]
   
-  f=f[0].get().transpose().copy()
+  f=prav.get().transpose().copy()
   w2=cl.array.to_device(queue,f)
 ######################----Norma-------------###########
   parameters = {"v": v2, "w" : w2, "u": u2, "n":n,"r":r} 
   evt, (f) = cknl_get_tensor(queue, **parameters)
-  norm=la.norm(a1-f[0].get())
+  norm=la.norm(a1-f[0].get())/la.norm(a1)
+  print "time",time.time()-t
   print norm
+  
