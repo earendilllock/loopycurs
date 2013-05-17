@@ -1,4 +1,4 @@
-% Created 2013-05-18 Сб. 00:05
+% Created 2013-05-18 Сб. 02:05
 \documentclass{scrartcl}
               \usepackage{float}
 \usepackage{placeins}
@@ -423,8 +423,102 @@ evt=cknl_r_U(queue, **parameters)[0]
 #evt,(f)= cknl_r_U(queue, **parameters) этот способ с пересылкой и поэтому не очень хорош
 evt.wait()
 \end{verbatim}
-\section{Заключение}
+\section{Используемы платформы}
 \label{sec-9}
+
+В ходе выполнения курсовой работы испоьзовались следующие вычислительные
+платформы:
+\begin{itemize}
+\item Мобильная видеокарта NVIDIA
+\item Процессор Intel Core i5
+\item Кластер ИВМ РАН tesla
+\end{itemize}
+Включим сведения о кластере ИВМ (так как основная часть экспериментов проводилась на нем)
+
+
+\begin{center}
+\begin{tabular}{lll}
+ Device Tesla C2070                                       &                                  &     \\
+ CL\_{} DEVICE\_{} NAME:                                  &  Tesla C2070                     &     \\
+ CL\_{} DEVICE\_{} VENDOR:                                &  NVIDIA Corporation              &     \\
+ CL\_{} DRIVER\_{} VERSION:                               &  304.54                          &     \\
+ CL\_{} DEVICE\_{} VERSION:                               &  OpenCL 1.1 CUDA                 &     \\
+ CL\_{} DEVICE\_{} OPENCL\_{} C\_{} VERSION:              &  OpenCL C 1.1                    &     \\
+ CL\_{} DEVICE\_{} TYPE:                                  &  CL\_{} DEVICE\_{} TYPE\_{} GPU  &     \\
+ CL\_{} DEVICE\_{} MAX\_{}  COMPUTE$_{\mathrm{UNITS}}$:   &  14                              &     \\
+ CL\_{} DEVICE\_{} MAX\_{} WORK\_{} ITEM\_{} DIMENSIONS:  &  3                               &     \\
+ CL\_{} DEVICE\_{} MAX\_{} WORK\_{} ITEM\_{} SIZES:       &  1024 / 1024 / 64                &     \\
+ CL\_{} DEVICE\_{} MAX\_{} WORK\_{} GROUP\_{} SIZE:       &  1024                            &     \\
+ CL\_{} DEVICE\_{} MAX\_{} CLOCK\_{} FREQUENCY:           &  1147 MHz                        &     \\
+ CL\_{} DEVICE\_{} ADDRESS\_{} BITS:                      &  32                              &     \\
+ CL\_{} DEVICE\_{} MAX\_{} MEM\_{} ALLOC\_{} SIZE:        &  1343 MByte                      &     \\
+ CL\_{} DEVICE\_{} GLOBAL\_{} MEM\_{} SIZE:               &  5375 MByte                      &     \\
+ CL\_{} DEVICE\_{} ERROR\_{} CORRECTION\_{} SUPPORT:      &  yes                             &     \\
+ CL\_{} DEVICE\_{} LOCAL\_{} MEM\_{} TYPE:                &  local                           &     \\
+ CL\_{} DEVICE\_{} LOCAL\_{} MEM\_{} SIZE:                &  48 KByte                        &     \\
+ CL\_{} DEVICE\_{} MAX\_{} CONSTANT\_{} BUFFER\_{} SIZE:  &  64 KByte                        &     \\
+ CL\_{} DEVICE\_{} IMAGE\_{} SUPPORT:                     &  1                               &     \\
+ CL\_{} DEVICE\_{} MAX\_{} READ\_{} IMAGE\_{} ARGS:       &  128                             &     \\
+ CL\_{} DEVICE\_{} MAX\_{} WRITE\_{} IMAGE\_{} ARGS:      &  8                               &     \\
+\end{tabular}
+\end{center}
+\section{Численные эксперименты}
+\label{sec-10}
+
+В ходе курсовой работы были реализованы несколько алгоритмов: алгоритм вычисления правой
+части ALS, алгоритм решения СЛАУ с помощью LU-разложения, алгоритм ALS. Для каждого 
+алгоритма получена OpenCL реализация, а запуск программ их реализующих осуществлялся
+на вышеперечисленных платформах. Эксперименты проводились с тензором размерности $d=3$
+(трехмерным тензором) и различными размерами $n$ и рангом $r$.
+ В ходе экспериментов на Tesla были получены следующие
+результаты:
+Для фиксированного ранга $r=3$ и размерности тензора $n$ исследована скорость выполнения как отдельных ядер, 
+так и всего алгоритма ALS. Однако ALS алгоритм не гарантирует сходимость, только
+убывание невязки, поэтому будем указывать только время выполнения одной итерации.
+Приведем таблицу с временем выполнения.
+
+
+\begin{center}
+\begin{tabular}{lrrrr}
+ размер n                 &         128  &         256  &       512  &       756  \\
+ вычисление правой части  &    0.013803  &     0.02674  &   0.65225  &   0.92513  \\
+ вычисление левой части   &  0.00035595  &   0.0004210  &  0.000552  &  0.000673  \\
+ решение СЛАУ             &  0.00025391  &  0.00025510  &  0.000256  &  0.000256  \\
+ LU-разложение            &  0.00024890  &   0.0002851  &   0.00035  &  0.000391  \\
+ время одной итерации     &    0.026740  &      0.1834  &   1.08289  &   1.92985  \\
+\end{tabular}
+\end{center}
+
+
+
+Приведем также таблицу с временем выполнения одной итерации программы, вычисления
+правой части в зависимости от ранга $r$ и фиксированной размерности тензора $n=128$
+
+\begin{center}
+\begin{tabular}{lrrrr}
+ ранг r                         &        3  &       6  &      10  &      20  \\
+ время вычисления правой части  &  0.01380  &  0.0152  &  0.0162  &  0.0184  \\
+ время одной итерации           &  0.04326  &  0.0437  &  0.0468  &  0.0556  \\
+\end{tabular}
+\end{center}
+
+
+
+Для наглядности также построим графики поведения времени вычисления правой части
+на CPU, мобильном GPU и Tesla:
+
+\begin{center}
+\begin{figure}[H]
+\centering
+\includegraphics[width=15cm]{s.jpg}
+\caption{Зависимость времени выполнения одной итерации от размера $n$}
+\end{figure}
+\end{center}
+
+На графике синяя линия соответствует мобильному GPU, зеленая CPU, красная Tesla. 
+Обрывы линий означают, что тензор большего размера уже не помещается в память.
+\section{Заключение}
+\label{sec-11}
 
 Средствами автоматической генерации кода удобно воспользоваться для распараллеливания
 тензорных алгоритмов с использованием вычислительного потенциала графических процессоров.
@@ -433,6 +527,273 @@ evt.wait()
 а создание их эффективной и быстрой реализации является одной из приоритетных задач,
 в то время как возможности автоматической генерации кода на GPU позволяют создать такую 
 реализацию быстро.
+
+На примере алгоритма ALS продемонстрированы возможности автоматического 
+распараллеливания тензорных алгоритмов с использованием пакета loo.py. 
+Получено серьезное ускорение ALS, изучен способ автоматического распараллеливания
+тензорных алгоритмов.
+\section{Приложение}
+\label{sec-12}
+
+В данном приложении приводятся Python ядра, использованные в ходе работы
+над курсовой. Названия ядер должны помочь понять, какой алгоритм оно реализует.
+
+\begin{verbatim}
+
+#def LU_decomposition(ctx):
+  order='C'
+  dtype = np.float32
+  knl = lp.make_kernel(ctx.devices[0], 
+  [
+    "{[k,i]: 0<=k<n-1 and k+1<=i<n}",
+    "{[j,l]: 0<=k<n-1 and k+1<=j,l<n}",
+  ],
+  [
+  "syst[i,k] = syst[i,k]/syst[k,k] {id=lab1}",
+  "syst[l,j]= syst[l,j] - syst[l,k]*syst[k,j] {dep=lab1}",
+  ],
+  [
+  lp.GlobalArg("syst", dtype, shape = "n, n" , order=order),
+  lp.ValueArg("n", np.int32),
+  ],
+  assumptions="n>=1")
+  knl = lp.split_iname(knl, "k", n)
+  knl = lp.split_iname(knl, "i", 32)
+  knl = lp.split_iname(knl, "j", 32)
+  knl = lp.split_iname(knl, "l", 32)
+
+#  print knl
+#  print lp.CompiledKernel(ctx, knl).get_highlighted_code()   
+  return knl
+
+def LU_solver(ctx):
+  order='C'
+  dtype = np.float32
+  knl = lp.make_kernel(ctx.devices[0], 
+  [
+
+    "{[l,k,i,j,m]: 0<=l<r and 0<=k<n-1 and k+1<=i<n and 0<=j<n-1 and 0<=m<n-1-j}",
+
+  ],
+  [
+  "bcopy[i,l] = bcopy[i,l]-bcopy[k,l]*LU[i,k] {id=lab1}",
+  "bcopy[n-1-j,l]=bcopy[n-j-1,l]/LU[n-j-1,n-1-j] {id=l2, dep=lab1}",
+  "bcopy[m,l]= bcopy[m,l]-bcopy[n-j-1,l]*LU[m,n-1-j] {id=l3, dep =l2}",
+  "bcopy[0,l]=bcopy[0,l]/LU[0,0]{id=l4, dep=l2}",
+  ],
+  [
+  lp.GlobalArg("LU", dtype, shape = "n, n" , order=order),
+  lp.GlobalArg("bcopy", dtype, shape = "n, r" , order=order),
+  lp.ValueArg("n", np.int64),
+  lp.ValueArg("r", np.int64),
+  ],
+  assumptions="n>=1")
+  knl = lp.split_iname(knl, "k", 1)
+  knl = lp.split_iname(knl, "i", 32)
+  knl = lp.split_iname(knl, "j", 32)
+  knl = lp.split_iname(knl, "l", 32, outer_tag="g.0", inner_tag="l.0")
+
+#  print knl
+#  print lp.CompiledKernel(ctx, knl).get_highlighted_code()   
+  return knl
+def Prav_U(ctx):
+  order='C'
+  dtype = np.float32
+  knl = lp.make_kernel(ctx.devices[0], 
+  [
+
+    "{[i,j,k,alpha]: 0<=alpha<r and 0<=i,j,k<n}",
+
+  ],
+  [
+    "f[alpha,i]=sum((j,k), a[i,j,k]*v[alpha,j]*w[alpha,k])",
+  ],
+  [
+    lp.GlobalArg("a", dtype, shape="n, n, n", order=order),
+    lp.GlobalArg("v", dtype, shape="r, n", order=order),
+    lp.GlobalArg("w", dtype, shape="r, n", order=order),
+    lp.GlobalArg("f", dtype, shape="r, n", order=order),
+    lp.ValueArg("n", np.int64),
+    lp.ValueArg("r", np.int64),
+  ],
+  assumptions="n>=1")
+  knl = lp.split_iname(knl, "i", 16,outer_tag="g.0", inner_tag="l.0")
+  knl = lp.split_iname(knl, "alpha", 1, outer_tag="g.1", inner_tag="l.1")
+  knl = lp.split_iname(knl, "j", 16)
+  knl = lp.split_iname(knl, "k", 16)
+  print lp.CompiledKernel(ctx, knl).get_highlighted_code()   
+  return knl
+
+
+def Prav_V(ctx):
+  order='C'
+  dtype = np.float32
+  knl = lp.make_kernel(ctx.devices[0], 
+  [
+
+    "{[i,j,k,alpha]: 0<=alpha<r and 0<=i,j,k<n}",
+
+  ],
+  [
+    "f[alpha,j]=sum((k,i), a[i,j,k]*w[alpha, k]*u[alpha, i])",
+  ],
+  [
+    lp.GlobalArg("a", dtype, shape="n, n, n", order=order),
+    lp.GlobalArg("u", dtype, shape="r, n", order=order),
+    lp.GlobalArg("w", dtype, shape="r, n", order=order),
+    lp.GlobalArg("f", dtype, shape="r, n", order=order),
+    lp.ValueArg("n", np.int64),
+    lp.ValueArg("r", np.int64),
+  ],
+  assumptions="n>=1")
+  knl = lp.split_iname(knl, "j", 16,outer_tag="g.0", inner_tag="l.0")
+  knl = lp.split_iname(knl, "alpha", 3, outer_tag="g.1", inner_tag="l.1")
+  knl = lp.split_iname(knl, "i", 16)
+  knl = lp.split_iname(knl, "k", 16) 
+
+  return knl
+
+def Prav_W(ctx):
+  order='C'
+  dtype = np.float32
+  knl = lp.make_kernel(ctx.devices[0], 
+  [
+
+    "{[i,j,k,alpha]: 0<=alpha<r and 0<=i,j,k<n}",
+
+  ],
+  [
+    "f[alpha,k]=sum((i,j), a[i,j,k]*u[alpha, i]*v[alpha, j])",
+  ],
+  [
+    lp.GlobalArg("a", dtype, shape="n, n, n", order=order),
+    lp.GlobalArg("v", dtype, shape="r, n", order=order),
+    lp.GlobalArg("u", dtype, shape="r, n", order=order),
+    lp.GlobalArg("f", dtype, shape="r, n", order=order),
+    lp.ValueArg("n", np.int64),
+    lp.ValueArg("r", np.int64),
+  ],
+  assumptions="n>=1")
+  knl = lp.split_iname(knl, "k", 16,outer_tag="g.0", inner_tag="l.0")
+  knl = lp.split_iname(knl, "alpha", 3, outer_tag="g.1", inner_tag="l.1")
+  knl = lp.split_iname(knl, "j", 16)
+  knl = lp.split_iname(knl, "i", 16) 
+
+
+  return knl
+
+def left_U(ctx):
+  order='C'
+  dtype = np.float32
+  knl = lp.make_kernel(ctx.devices[0], 
+  [
+
+    "{[j,k,alpha,alpha1]: 0<=alpha,alpha1<r and 0<=j,k<n}",
+
+  ],
+  [
+    "l[alpha,alpha1]=sum((j), v[alpha,j]*v[alpha1,j])*sum((k),w[alpha,k]*w[alpha1,k])",
+  ],
+  [
+
+    lp.GlobalArg("v", dtype, shape="r, n", order=order),
+    lp.GlobalArg("w", dtype, shape="r, n", order=order),
+    lp.GlobalArg("l", dtype, shape="r, r", order=order),
+    lp.ValueArg("n", np.int64),
+    lp.ValueArg("r", np.int64),
+  ],
+  assumptions="n>=1")
+  knl = lp.split_iname(knl, "alpha1", 16,outer_tag="g.0", inner_tag="l.0")
+  knl = lp.split_iname(knl, "alpha", 3, outer_tag="g.1", inner_tag="l.1")
+  knl = lp.split_iname(knl, "j", 16)
+  knl = lp.split_iname(knl, "k", 16)
+
+  return knl
+
+def left_V(ctx):
+  order='C'
+  dtype = np.float32
+  knl = lp.make_kernel(ctx.devices[0], 
+  [
+
+    "{[i,k,alpha,alpha1]: 0<=alpha,alpha1<r and 0<=i,k<n}",
+
+  ],
+  [
+    "l[alpha,alpha1]=sum((i), u[alpha,i]*u[alpha1,i])*sum((k),w[alpha,k]*w[alpha1,k])",
+  ],
+  [
+
+    lp.GlobalArg("u", dtype, shape="r, n", order=order),
+    lp.GlobalArg("w", dtype, shape="r, n", order=order),
+    lp.GlobalArg("l", dtype, shape="r, r", order=order),
+    lp.ValueArg("n", np.int64),
+    lp.ValueArg("r", np.int64),
+  ],
+  assumptions="n>=1")
+  knl = lp.split_iname(knl, "alpha1", 16,outer_tag="g.0", inner_tag="l.0")
+  knl = lp.split_iname(knl, "alpha", 3, outer_tag="g.1", inner_tag="l.1")
+  knl = lp.split_iname(knl, "i", 16)
+  knl = lp.split_iname(knl, "k", 16)
+
+  return knl
+
+def left_W(ctx):
+  order='C'
+  dtype = np.float32
+  knl = lp.make_kernel(ctx.devices[0], 
+  [
+
+    "{[j,i,alpha,alpha1]: 0<=alpha,alpha1<r and 0<=j,i<n}",
+
+  ],
+  [
+    "l[alpha,alpha1]=sum((i), u[alpha,i]*u[alpha1,i])*sum((j),v[alpha,j]*v[alpha1,j])",
+  ],
+  [
+
+    lp.GlobalArg("v", dtype, shape="r, n", order=order),
+    lp.GlobalArg("u", dtype, shape="r, n", order=order),
+    lp.GlobalArg("l", dtype, shape="r, r", order=order),
+    lp.ValueArg("n", np.int64),
+    lp.ValueArg("r", np.int64),
+  ],
+  assumptions="n>=1")
+  knl = lp.split_iname(knl, "alpha1", 16,outer_tag="g.0", inner_tag="l.0")
+  knl = lp.split_iname(knl, "alpha", 3, outer_tag="g.1", inner_tag="l.1")
+  knl = lp.split_iname(knl, "j", 16)
+  knl = lp.split_iname(knl, "i", 16)
+
+  return knl
+
+def get_tensor(ctx):
+  order='C'
+  dtype = np.float32
+  knl = lp.make_kernel(ctx.devices[0], 
+  [
+
+    "{[j,i,alpha,k]: 0<=alpha<r and 0<=i,j,k<n}",
+
+  ],
+  [
+    "res[i,j,k]=sum((alpha), u[alpha,i]*v[alpha,j]*w[alpha,k])",
+  ],
+  [
+    lp.GlobalArg("res", dtype, shape="n, n, n", order=order),
+    lp.GlobalArg("v", dtype, shape="r, n", order=order),
+    lp.GlobalArg("u", dtype, shape="r, n", order=order),
+    lp.GlobalArg("w", dtype, shape="r, n", order=order),
+    lp.ValueArg("n", np.int32),
+    lp.ValueArg("r", np.int32),
+  ],
+  assumptions="n>=1")
+  knl = lp.split_iname(knl, "i", 8,outer_tag="g.0", inner_tag="l.0")
+  knl = lp.split_iname(knl, "j", 8, outer_tag="g.1", inner_tag="l.1")
+  knl = lp.split_iname(knl, "alpha", 2)
+  knl = lp.split_iname(knl, "k", 8, outer_tag="g.2", inner_tag="l.2" )
+
+  return knl
+\end{verbatim}
  
 \bibliography{cursov}
 \bibliographystyle{plain}

@@ -262,7 +262,7 @@ def get_tensor(ctx):
   return knl
 
 
-n=128
+n=756
 r=3
 k=0
 norm2=1
@@ -273,7 +273,7 @@ dimension=[n,n,n]
 
 
 plt = cl.get_platforms()
-nvidia_plat = plt[1]
+nvidia_plat = plt[0]
 ctx = cl.Context(nvidia_plat.get_devices())
 
 
@@ -395,5 +395,5 @@ for trtrtr in xrange(10):
 #  evt, (f) = cknl_get_tensor(queue, **parameters)
 #  norm=la.norm(a1-f[0].get())/la.norm(a1)
   print "time",time.time()-t
-  print norm
+#  print norm
   
