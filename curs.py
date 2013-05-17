@@ -300,7 +300,7 @@ dimension=[n,n,n]
 
 
 plt = cl.get_platforms()
-nvidia_plat = plt[0]
+nvidia_plat = plt[1]
 ctx = cl.Context(nvidia_plat.get_devices())
 
 
