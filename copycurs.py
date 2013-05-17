@@ -85,10 +85,10 @@ def Prav_U(ctx):
   ],
   assumptions="n>=1")
   knl = lp.split_iname(knl, "i", 16,outer_tag="g.0", inner_tag="l.0")
-  knl = lp.split_iname(knl, "alpha", 3, outer_tag="g.1", inner_tag="l.1")
+  knl = lp.split_iname(knl, "alpha", 1, outer_tag="g.1", inner_tag="l.1")
   knl = lp.split_iname(knl, "j", 16)
   knl = lp.split_iname(knl, "k", 16)
-  
+  print lp.CompiledKernel(ctx, knl).get_highlighted_code()   
   return knl
 
 
@@ -331,66 +331,69 @@ import time
 for trtrtr in xrange(10):
   t=time.time()
   parameters={"a":a2,"v":v2,"w":w2,"n":n,"r":r,"f":prav}
-  evt =  cknl_r_U(queue, **parameters)[0]
+  
+  evt=cknl_r_U(queue, **parameters)[0]
+  evt.wait()
   
   parameters={"v": v2, "w" : w2, "n":n,"r":r,"l":left}
-  evt= cknl_l_U(queue,**parameters)[0]
-  left2=left.get().copy()
+  evt=cknl_l_U(queue,**parameters)[0]
+  evt.wait()
+
+ 
   
   
   parameters={"syst":left,"n":r}
-  evt= cknl_decompose(queue,**parameters)[0]
- 
-  prav2=prav.copy()
+  evt=cknl_decompose(queue,**parameters)[0]
+  evt.wait()
   parameters={"LU":left,"bcopy":prav,"n":r,"r":n}
   evt=cknl_solve(queue,**parameters)[0]
-  
+  evt.wait()
 #  f=prav.get().transpose().copy()
   
 #  u2=cl.array.to_device(queue,f)
   u2=prav.copy()
 ##########################----V-----################
   parameters={"a":a2,"u":u2,"w":w2,"n":n,"r":r,"f":prav}
-  evt =  cknl_r_V(queue, **parameters)[0]
-  
+  evt=cknl_r_V(queue, **parameters)[0]
+  evt.wait()
   parameters={"u": u2, "w" : w2, "n":n,"r":r,"l":left}
-  evt= cknl_l_V(queue,**parameters)[0]
-  left2=left.get().copy()
-  
+  evt=cknl_l_V(queue,**parameters)[0]
+  evt.wait()
   
   parameters={"syst":left,"n":r}
-  evt= cknl_decompose(queue,**parameters)[0]
- 
-  prav2=prav.copy()
+  evt=cknl_decompose(queue,**parameters)[0]
+  evt.wait()
+
   parameters={"LU":left,"bcopy":prav,"n":r,"r":n}
   evt=cknl_solve(queue,**parameters)[0]
-  
+  evt.wait()
 #  f=prav.get().transpose().copy()
 #  v2=cl.array.to_device(queue,f) 
   v2=prav.copy() 
 ##########################--------W-----------###########
   parameters={"a":a2,"v":v2,"u":u2,"n":n,"r":r,"f":prav}
-  evt =  cknl_r_W(queue, **parameters)[0]
-  
+  evt=cknl_r_W(queue, **parameters)[0]
+  evt.wait()
   parameters={"v": v2, "u" : u2, "n":n,"r":r,"l":left}
-  evt= cknl_l_W(queue,**parameters)[0]
-  left2=left.get().copy()
-  
+  evt=cknl_l_W(queue,**parameters)[0]
+  evt.wait()
+
   
   parameters={"syst":left,"n":r}
-  evt= cknl_decompose(queue,**parameters)[0]
+  evt=cknl_decompose(queue,**parameters)[0]
+  evt.wait()
  
-  prav2=prav.copy()
   parameters={"LU":left,"bcopy":prav,"n":r,"r":n}
   evt=cknl_solve(queue,**parameters)[0]
+  evt.wait()
   
 #  f=prav.get().transpose().copy()
 #  w2=cl.array.to_device(queue,f)
   w2=prav.copy()
 ######################----Norma-------------###########
-  parameters = {"v": v2, "w" : w2, "u": u2, "n":n,"r":r} 
-  evt, (f) = cknl_get_tensor(queue, **parameters)
-  norm=la.norm(a1-f[0].get())/la.norm(a1)
+#  parameters = {"v": v2, "w" : w2, "u": u2, "n":n,"r":r} 
+#  evt, (f) = cknl_get_tensor(queue, **parameters)
+#  norm=la.norm(a1-f[0].get())/la.norm(a1)
   print "time",time.time()-t
   print norm
   

@@ -1,0 +1,21 @@
+\begin{thebibliography}{1}
+
+\bibitem{carroll1970analysis}
+J.D. Carroll and J.J. Chang.
+\newblock Analysis of individual differences in multidimensional scaling via an
+  n-way generalization of “eckart-young” decomposition.
+\newblock {\em Psychometrika}, 35(3):283--319, 1970.
+
+\bibitem{faber2003recent}
+N.K.M. Faber, R.~Bro, and P.K. Hopke.
+\newblock Recent developments in candecomp/parafac algorithms: a critical
+  review.
+\newblock {\em Chemometrics and Intelligent Laboratory Systems},
+  65(1):119--137, 2003.
+
+\bibitem{kolda2009tensor}
+T.G. Kolda and B.W. Bader.
+\newblock Tensor decompositions and applications.
+\newblock {\em SIAM review}, 51(3):455, 2009.
+
+\end{thebibliography}
