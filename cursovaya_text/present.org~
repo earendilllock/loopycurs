@@ -1,0 +1,283 @@
+#+startup: beamer
+#+LaTeX_CLASS: beamer
+#+STARTUP: overview
+#+STARTUP: hidestars
+#+LaTeX_CLASS_OPTIONS: [presentation]
+#+BEAMER_FRAME_LEVEL: 2
+#+COLUMNS: %40ITEM %10BEAMER_env(Env) %4BEAMER_envargs(Env Args) %4BEAMER_col(Col) %10BEAMER_extra(Extra)
+#+BEAMER_HEADER_EXTRA \beamerdefaultoverlayspecification{<+->}
+
+
+#+TITLE: Тех
+#+AUTHOR: Кузнецов М.А.
+#+DATE: 24 мая 2012
+* LATEX OPTIONS 						   :noexport:
+#+OPTIONS: toc:nil
+** Packages
+#+LATEX_HEADER: \usepackage[english,russian]{babel}
+#%+LATEX_HEADER: \usepackage{mathtools}
+#+LATEX_HEADER: \usepackage{graphicx}
+#+LATEX_HEADER: \usepackage{amsfonts}
+#+LATEX_HEADER: \usepackage{color}
+#+LATEX_HEADER: \usepackage{algorithmic} \usepackage[ruled]{algorithm}
+#+LATEX_HEADER: \usetheme{Warsaw}
+#+LATEX_HEADER: \usepackage{concrete}
+#%+LaTeX_HEADER: \usepackage{minted}
+#%+LaTeX_HEADER: \usemintedstyle{emacs}
+#+LATEX_HEADER: \centering
+
+** User-defined symbols
+#+LATEX_HEADER: \def\A{\mathbf{A}}
+#+LATEX_HEADER: \def\V{\mathbf{V}}
+#+LATEX_HEADER: \def\B{\mathbf{B}}
+#+LATEX_HEADER: \def\C{\mathbf{C}}
+** HTML export
+#+MATHJAX: align:"left" mathml:t path:"http://orgmode.org/mathjax/MathJax.js"
+
+
+* Tasks 							   :noexport:
+** TODO Сделать набросок слайдов
+   
+
+* Cодержание
+** Утверждения
+-Тензорные алгоритмы сложные и требуют больших вычислительных затрат
+-GPU обладают большой мощьностью в плане вычислений
+Отсюда логичный вывод --- попытаться писать код алгоритма для GPU
+** Код для GPU --- особенности
+У программирования для GPU есть свои плюсы и минусы
+"+"
+- Возможность использования множества процессоров
+- Возможность серьезного ускорения программы
+"-"
+- Очень длительный процесс написания кода
+- Сложность написания кода
+- Платформенно-зависим
+** Пример кода для GPU
+#+begin_src python :exports code
+__kernel void __attribute__ ((reqd_work_group_size(16, 1, 1))) loopy_kernel(__global float const *restrict a, __global float const *restrict v, __global float const *restrict w, __global float *restrict f, long const n, long const r)
+{
+  float acc_j_outer_j_inner_k_outer_k_inner;
+
+  if ((-1 + -16 * gid(0) + -1 * lid(0) + n) >= 0)
+  {
+    acc_j_outer_j_inner_k_outer_k_inner = 0.0f;
+    for (int j_inner = 0; j_inner <= 15; ++j_inner)
+      for (int k_inner = 0; k_inner <= 15; ++k_inner)
+        for (int k_outer = 0; k_outer <= (-1 + -1 * k_inner + ((15 + n + 15 * k_inner) / 16)); ++k_outer)
+          for (int j_outer = 0; j_outer <= (-1 + -1 * j_inner + ((15 + n + 15 * j_inner) / 16)); ++j_outer)
+            acc_j_outer_j_inner_k_outer_k_inner = acc_j_outer_j_inner_k_outer_k_inner + a[n * n * (lid(0) + gid(0) * 16) + n * (j_inner + j_outer * 16) + k_inner + k_outer * 16] * v[n * (lid(1) + gid(1)) + j_inner + j_outer * 16] * w[n * (lid(1) + gid(1)) + k_inner + k_outer * 16];
+    f[n * (lid(1) + gid(1)) + lid(0) + gid(0) * 16] = acc_j_outer_j_inner_k_outer_k_inner;
+  }
+}
+#+end_src
+** Идея автоматической генерации
+Код на OpenCL сложный, нужно учитывать барьеры, разбиение и вычислительные сетки.
+Поэтому логично использвать пакеты автоматической генерации кода. 
+Использован новый, активно разрабатывающийся пакет loo.py
+** Почему Python
+Вообще говоря Python медленный язык. Почему же его можно использовать для ускорения работы программ?
+Однако:
+-Python обладает большим количеством стандартных модулей
+-Использование модулей дает возможность получить скорость C-кода
+-Простой синтаксис языка позволяет быстро писать программы даже для сложных алгоритмов
+-Экономит время программиста
+** Пакет Loo.py
+Пакет loo.py разрабатывается Андреасом Клекнером (Andreas Kloekner).
+[[http://gitlab.tiker.net/inducer/loopy]] 
+Вышеуказанный репозиторий --- закрытый, однако автор включен в список "разработчиков".
+Стабильную версию можно найти здесь [[http://git.tiker.net/loopy.git]]
+
+Пакет предназначен для "развертки" циклов и последующей генерации OpenCL кода.
+Для этого нужно сформулировать ядро в специальном синтаксисе.
+
+** Пример ядра
+#+begin_src python :exports code
+def Prav_U(ctx):
+  order='C'
+  dtype = np.float32
+  knl = lp.make_kernel(ctx.devices[0], 
+  [
+    
+    "{[i,j,k,alpha]: 0<=alpha<r and 0<=i,j,k<n}",
+    
+  ],
+  [
+    "f[alpha,i]=sum((j,k), a[i,j,k]*v[alpha,j]*w[alpha,k])",
+  ],
+  [
+    lp.GlobalArg("a", dtype, shape="n, n, n", order=order),
+    
+#+end_src
+** 
+#+begin_src python :exports code
+lp.GlobalArg("v", dtype, shape="r, n", order=order),
+    lp.GlobalArg("w", dtype, shape="r, n", order=order),
+    lp.GlobalArg("f", dtype, shape="r, n", order=order),
+    lp.ValueArg("n", np.int64),
+    lp.ValueArg("r", np.int64),
+  ],
+  assumptions="n>=1")
+  knl = lp.split_iname(knl, "i", 16,outer_tag="g.0", inner_tag="l.0")
+  knl = lp.split_iname(knl, "alpha", 1, outer_tag="g.1", inner_tag="l.1")
+  knl = lp.split_iname(knl, "j", 16)
+  knl = lp.split_iname(knl, "k", 16)
+  print lp.CompiledKernel(ctx, knl).get_highlighted_code()   
+  return knl
+#+end_src 
+** Цель курсовой работы
+
+** Каноническое разложение
+/Определение/
+  
+ Тензором A размерности $d$ назовем многомерный массив, элементы которого A(i_1,i_2,\ldots,i_d) имеют $d$ 
+индексов. $1 \leq i_k \leq n_k$; $n_k$ называются модовыми размерами (размерами мод)
+
+ /Определение/
+
+ Каноническим разложением многомерного массива (/тензора/) 
+называется представление вида 
+
+\begin{equation}\label{curs:eq1}
+A(i_1,i_2,\ldots,i_d) = \sum_{\alpha=1}^r U_1(i_1,\alpha) U_2(i_2,\alpha) \ldots U_d(i_d,\alpha),
+\end{equation}
+где U_k называются /факторами/ канонического разложения, а $r$ --- каноническим рангом.
+
+** Мотивировка
+ Конечная цель: задача об интерполяции многомерных данных
+Есть набор точек $(x_i,y_i)$; $x_i$ = {{ $x_1,\ldots,x_d$ }} $y_i$ = $f(x_i)$
+и нужно построить интерполяцию функции $f(x)$
+** Цель курсовой работы
+  Целью курсовой работы является изучение метода переменных направлений для 
+канонической аппроксимации тензора, и написание его эффективной реализации. К программе предъявляются 
+следующие требования:
+1) Она должна работать для любой размерности тензора.
+2) Реализация на Python
+
+** Простейший функционал
+Пусть задан тензор $A$ с элементами $A_{i_1 \ldots i_d}$. Задача состоит в том, чтобы найти его
+  каноническое приближение, а именно найти такие матрицы $U_1,\ldots,U_d$
+
+\begin{equation}\label{curs:caneq}
+A_{i_1,\ldots,i_d} \approx  \sum_{\alpha=1}^r U_1(i_1,\alpha) U_2(i_2,\alpha) \ldots U_d(i_d,\alpha).
+\end{equation}
+Математическая постановка задачи состоит в том, чтобы решить задачу
+\eqref{curs:caneq} в смысле наименьших квадратов
+\begin{equation*}
+F=\sum_{i,j,k=1} (A_{ijk}-\sum_{\alpha=1}^r U_{i\alpha}V_{j\alpha}W_{k\alpha})^2.
+\end{equation*}
+** Метод ALS: идея
+
+Основная идея алгоритма, состоит в том, чтобы фиксировать все факторы,
+кроме одного, канонического разложения и искать минимум функционала 
+\begin{equation*}
+F=\sum_{i,j,k=1} (A_{ijk}-\sum_{\alpha=1}^r U_{i\alpha}V_{j\alpha}W_{k\alpha})^2.
+\end{equation*}
+только по нему.
+Путем циклических перестановок, используя уже полученные факторы, строятся последующие, до тех пор,
+пока не будет достигнута требуемая точность аппроксимации или, пока не сработают другие критерии
+остановки алгоритма
+** Формулы метода ALS
+
+Найдем частную производную функционала F по U_{\hat i\hat\alpha} и приравняем ее к 0:
+\begin{equation*}
+\frac{\partial F}{\partial U_{\hat i \hat \alpha}} = 
+2 \Big( \sum_{i,j,k} (A_{ijk}-\sum_{\alpha} U_{i \alpha}V_{j\alpha}W_{k\alpha})\Big)\Big(-
+\sum_{\check \alpha}\ (V_{j\check \alpha}W_{k\check \alpha})
+\frac{\partial U_{i \check \alpha}}{\partial U_{\hat i \hat \alpha}}\Big) =0;
+\end{equation*}
+\begin{equation*}
+\frac{\partial U_{i \check \alpha}}{\partial U_{\hat i \hat \alpha}} =
+\delta_{i,\hat i}\delta_{\check \alpha \hat \alpha};
+\end{equation*}
+
+Окончательно, получаем следующие соотношения:
+\begin{equation*}
+\sum_{j,k} A_{\hat ijk}V_{j \hat \alpha}W_{k\hat \alpha}=
+\sum_{j,k,\alpha} U_{\hat i\alpha}V_{j\alpha}W_{k\alpha}V_{j\hat \alpha}
+W_{k,\hat \alpha},
+\end{equation*}
+** Формулы ALS
+Обозначим через M_{\alpha \hat \alpha}
+матрицу с элементами
+\begin{equation}\label{curs:lev}
+M_{\alpha,\hat \alpha} = (\sum_{j}V_{j,\alpha}
+V_{j\hat \alpha}) (\sum_{k}W_{k\alpha}W_{k\hat \alpha});
+\end{equation}
+тогда
+\begin{equation}\label{curs:prav}
+\sum_{\alpha} U_{\hat i, \alpha}M_{\alpha,\hat \alpha} = 
+\sum_{j,k} A_{\hat i,j,k}V_{j, \hat \alpha}W_{k,\hat \alpha};
+\end{equation}
+Через  F_{i,\hat \alpha} обозначим правую часть. Тогда, имеем
+\begin{equation}
+\sum_{\alpha} U_{\hat i \alpha}M_{\alpha \hat \alpha}=F_{i \hat \alpha}.
+\end{equation}
+** В виде системы
+или в виде системы линейных уравнений
+
+\begin{equation}\label{curs:q5}
+U M = F.
+\end{equation}
+где $M \in \mathbb{R}^{r \times r}$. 
+
+** Реализация на Python
+  Поставленная задача реализации алгоритма ALS на Python предполагает:
+- Реализацию алгоритма в виде единой процедуры для любой размерности
+- Реализацию функций вычисления правой и левой частей системы \eqref{curs:q5}, используя математические ухищрения и возможности Python, для того чтобы обойти проблему неопределенной размерности, так как предыдущий пункт эту проблему ставит.
+- Ограничение интрументария стандартными функциями библиотек (довольно богатых),чтобы избежать потерь в скорости, так как Python интерпретируемый скриптовый язык.
+** Численные эксперименты
+Поведение невязки при разных размерностях тензора
+#+begin_center
+#+attr_latex: width=8cm
+[[file:zav.pdf]]
+#+end_center
+** 2
+Зависимость времени выполнения программы от размерностей тензора
+#+begin_center
+#+attr_latex: width=8cm
+[[file:totd.pdf]]
+#+end_center
+
+** Численные эксперименты2
+Зависимость времени выполнения программы от различных рангов
+#+begin_center
+#+ATTR_LaTeX: width=8cm
+[[file:totr.pdf]]
+#+end_center
+** 3
+Зависимость времени выполнения программы от различных размеров мод
+#+begin_center
+#+attr_latex: width=8cm
+[[file:timeotdimenss.pdf]]
+#+end_center
+** Численные эксперименты3
+\begin{equation*}
+A[i,j,k] = \frac{1}{i+j+k+1}  ,   i,j,k =1,2,\ldots,n - 1
+\end{equation*}
+Поведение невязки с разных стартов
+#+begin_center
+#+attr_latex: width=8cm
+[[file:nonrnd5.pdf]]
+#+end_center
+** 4
+Поведение невязки при извменении ранга 5,20,37
+#+begin_center
+#+attr_latex: width=8cm
+[[file:r52037.pdf]]
+#+end_center
+** Тензор матричного умножения
+Поведение невязки тензора матричного умножения при ранге 7 и 6
+
+#+begin_center
+#+attr_latex: width=8cm
+[[file:umnoj.pdf]]
+#+end_center
+** Выводы и планы
+В ходе выполнения работы была получена реализация алгоритма ALS, удовлетворяющая требованиям:
+1) Независимости от размерности тензора
+2) Реализации с помощью библиотек и стандартных средств языка Python
+Результаты расчетов по реализации программы на Python согласуются с известными результатами. 
+
+В дальнейшем полученный опыт планируется распространить другие форматы и функционалы:
+TT (TensorTrain) и на задачу интерполяции многомерных функций

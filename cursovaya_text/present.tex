@@ -1,0 +1,404 @@
+% Created 2013-05-20 Пн. 02:34
+\documentclass[presentation]{beamer}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{fixltx2e}
+\usepackage{graphicx}
+\usepackage{longtable}
+\usepackage{float}
+\usepackage{wrapfig}
+\usepackage{soul}
+\usepackage{textcomp}
+\usepackage{marvosym}
+\usepackage{wasysym}
+\usepackage{latexsym}
+\usepackage{amssymb}
+\usepackage{hyperref}
+\tolerance=1000
+\usepackage[english,russian]{babel}
+\usepackage{graphicx}
+\usepackage{amsfonts}
+\usepackage{color}
+\usepackage{algorithmic} \usepackage[ruled]{algorithm}
+\usetheme{Warsaw}
+\usepackage{concrete}
+\centering
+\def\A{\mathbf{A}}
+\def\V{\mathbf{V}}
+\def\B{\mathbf{B}}
+\def\C{\mathbf{C}}
+\providecommand{\alert}[1]{\textbf{#1}}
+
+\title{Исследование и развитие технологий автогенерации кода для GPU в применении к задачам тензорной аппроксимации. Алогоритм ALS}
+\author{Кузнецов М.А.}
+\date{20 мая 2013}
+\hypersetup{
+  pdfkeywords={},
+  pdfsubject={},
+  pdfcreator={Emacs Org-mode version 7.8.02}}
+
+\begin{document}
+
+\maketitle
+
+
+
+\section{Cодержание}
+\label{sec-1}
+\begin{frame}
+\frametitle{Утверждения}
+\label{sec-1-1}
+
+\begin{itemize}
+\item Тензорные алгоритмы сложные и требуют больших вычислительных затрат
+\item GPU обладают большой мощьностью в плане вычислений
+\end{itemize}
+Отсюда логичный вывод --- попытаться писать код алгоритма для GPU
+\end{frame}
+\begin{frame}
+\frametitle{Код для GPU --- особенности}
+\label{sec-1-2}
+
+У программирования для GPU есть свои плюсы и минусы
+
+``+''
+\begin{itemize}
+\item Возможность использования множества процессоров
+\item Возможность серьезного ускорения программы
+\end{itemize}
+``-''
+\begin{itemize}
+\item Очень длительный процесс написания кода
+\item Сложность написания кода
+\item Платформенно-зависим
+\end{itemize}
+\end{frame}
+\begin{frame}[fragile]
+\frametitle{Пример кода для GPU}
+\label{sec-1-3}
+
+
+\begin{verbatim}
+__kernel void __attribute__ ((reqd_work_group_size(16, 1, 1))) loopy_kernel(__global float const *restrict a, __global float const *restrict v, __global float const *restrict w, __global float *restrict f, long const n, long const r)
+{
+  float acc_j_outer_j_inner_k_outer_k_inner;
+
+  if ((-1 + -16 * gid(0) + -1 * lid(0) + n) >= 0)
+  {
+    acc_j_outer_j_inner_k_outer_k_inner = 0.0f;
+    for (int j_inner = 0; j_inner <= 15; ++j_inner)
+      for (int k_inner = 0; k_inner <= 15; ++k_inner)
+        for (int k_outer = 0; k_outer <= (-1 + -1 * k_inner + ((15 + n + 15 * k_inner) / 16)); ++k_outer)
+          for (int j_outer = 0; j_outer <= (-1 + -1 * j_inner + ((15 + n + 15 * j_inner) / 16)); ++j_outer)
+            acc_j_outer_j_inner_k_outer_k_inner = acc_j_outer_j_inner_k_outer_k_inner + a[n * n * (lid(0) + gid(0) * 16) + n * (j_inner + j_outer * 16) + k_inner + k_outer * 16] * v[n * (lid(1) + gid(1)) + j_inner + j_outer * 16] * w[n * (lid(1) + gid(1)) + k_inner + k_outer * 16];
+    f[n * (lid(1) + gid(1)) + lid(0) + gid(0) * 16] = acc_j_outer_j_inner_k_outer_k_inner;
+  }
+}
+\end{verbatim}
+\end{frame}
+\begin{frame}
+\frametitle{Идея автоматической генерации}
+\label{sec-1-4}
+
+Код на OpenCL сложный, нужно учитывать барьеры, разбиение и вычислительные сетки.
+Поэтому логично использвать пакеты автоматической генерации кода. 
+Использован новый, активно разрабатывающийся пакет loo.py
+\end{frame}
+\begin{frame}
+\frametitle{Почему Python}
+\label{sec-1-5}
+
+Вообще говоря Python медленный язык. Почему же его можно использовать для ускорения работы программ?
+Однако:
+\begin{itemize}
+\item Python обладает большим количеством стандартных модулей
+\item Использование модулей дает возможность получить скорость C-кода
+\item Простой синтаксис языка позволяет быстро писать программы даже для сложных алгоритмов
+\item Экономит время программиста
+\end{itemize}
+\end{frame}
+\begin{frame}
+\frametitle{Пакет Loo.py}
+\label{sec-1-6}
+
+Пакет loo.py разрабатывается Андреасом Клекнером (Andreas Kloekner).
+\href{http://gitlab.tiker.net/inducer/loopy}{http://gitlab.tiker.net/inducer/loopy} 
+Вышеуказанный репозиторий --- закрытый, однако автор включен в список ``разработчиков''.
+Стабильную версию можно найти здесь \href{http://git.tiker.net/loopy.git}{http://git.tiker.net/loopy.git}
+
+Пакет предназначен для ``развертки'' циклов и последующей генерации OpenCL кода.
+Для этого нужно сформулировать ядро в специальном синтаксисе.
+\end{frame}
+\begin{frame}[fragile]
+\frametitle{Как правильно сформулировать алгоритм}
+\label{sec-1-7}
+
+Для применения пакета loo.py алгоритм должен быть формализован и записан в виде
+вложенных циклов:
+
+\begin{verbatim}
+for i in xrange(...):
+     for j in xrange(....):
+...............
+          for k n xrange(....):
+           .............
+\end{verbatim}
+\end{frame}
+\begin{frame}[fragile]
+\frametitle{Пример ядра}
+\label{sec-1-8}
+
+
+\begin{verbatim}
+def Prav_U(ctx):
+  order='C'
+  dtype = np.float32
+  knl = lp.make_kernel(ctx.devices[0], 
+  [
+
+    "{[i,j,k,alpha]: 0<=alpha<r and 0<=i,j,k<n}",
+
+  ],
+  [
+    "f[alpha,i]=sum((j,k), a[i,j,k]*v[alpha,j]*w[alpha,k])",
+  ],
+  [
+    lp.GlobalArg("a", dtype, shape="n, n, n", order=order),
+\end{verbatim}
+\end{frame}
+\begin{frame}[fragile]
+
+
+\begin{verbatim}
+lp.GlobalArg("v", dtype, shape="r, n", order=order),
+    lp.GlobalArg("w", dtype, shape="r, n", order=order),
+    lp.GlobalArg("f", dtype, shape="r, n", order=order),
+    lp.ValueArg("n", np.int64),
+    lp.ValueArg("r", np.int64),
+  ],
+  assumptions="n>=1")
+  knl = lp.split_iname(knl, "i", 16,outer_tag="g.0", inner_tag="l.0")
+  knl = lp.split_iname(knl, "alpha", 1, outer_tag="g.1", inner_tag="l.1")
+  knl = lp.split_iname(knl, "j", 16)
+  knl = lp.split_iname(knl, "k", 16)
+  print lp.CompiledKernel(ctx, knl).get_highlighted_code()   
+  return knl
+\end{verbatim}
+\end{frame}
+\begin{frame}
+\frametitle{Актуальность исследования}
+\label{sec-1-10}
+
+Привлекательность исследования обусловлена несколькими факторами:
+\begin{enumerate}
+\item Тензорные алгоритмы начали активно разрабатываться в последнее время
+\item Написание GPU-кода --- сложная задача, существует необходимость исследовать возможности автогенерации GPU-кода
+\item Вычислительная мощность GPU превосходит многоядерные CPU, использование GPU эффективней
+\end{enumerate}
+\end{frame}
+\begin{frame}
+
+Ввиду того, что процесс написания GPU-кода вручную длительный и трудоемкий, хоть и эффективный,
+ в вычислительных задачах хотелось бы использовать следующий ``идеальный'' способ его написания:
+\begin{enumerate}
+\item Использование в динамических языках (Python)
+\item Автоматическое распараллеливание стандартных задач (циклов), генерация OpenCL/CUDA-кода
+\item Высокая эффективность
+\end{enumerate}
+\end{frame}
+\begin{frame}
+\frametitle{Цель курсовой работы}
+\label{sec-1-12}
+
+\begin{itemize}
+\item Науичится использовать пакет loo.py
+\item С помощью пакета получить эффективную параллельную реализацию алгоритма ALS
+\item Научится ``параллелить'' тензорные алгоитмы
+\end{itemize}
+\end{frame}
+\begin{frame}
+\frametitle{Метод ALS: идея}
+\label{sec-1-13}
+
+
+Основная идея алгоритма, состоит в том, чтобы фиксировать все факторы,
+кроме одного, канонического разложения и искать минимум функционала 
+\begin{equation*}
+F=\sum_{i,j,k=1} (A_{ijk}-\sum_{\alpha=1}^r U_{i\alpha}V_{j\alpha}W_{k\alpha})^2.
+\end{equation*}
+только по нему.
+Путем циклических перестановок, используя уже полученные факторы, строятся последующие, до тех пор,
+пока не будет достигнута требуемая точность аппроксимации или, пока не сработают другие критерии
+остановки алгоритма
+\end{frame}
+\begin{frame}
+\frametitle{Формулы метода ALS}
+\label{sec-1-14}
+
+
+Найдем частную производную функционала F по U$_{\hat i\hat\alpha}$ и приравняем ее к 0:
+\begin{equation*}
+\frac{\partial F}{\partial U_{\hat i \hat \alpha}} = 
+2 \Big( \sum_{i,j,k} (A_{ijk}-\sum_{\alpha} U_{i \alpha}V_{j\alpha}W_{k\alpha})\Big)\Big(-
+\sum_{\check \alpha}\ (V_{j\check \alpha}W_{k\check \alpha})
+\frac{\partial U_{i \check \alpha}}{\partial U_{\hat i \hat \alpha}}\Big) =0;
+\end{equation*}
+\begin{equation*}
+\frac{\partial U_{i \check \alpha}}{\partial U_{\hat i \hat \alpha}} =
+\delta_{i,\hat i}\delta_{\check \alpha \hat \alpha};
+\end{equation*}
+
+Окончательно, получаем следующие соотношения:
+\begin{equation*}
+\sum_{j,k} A_{\hat ijk}V_{j \hat \alpha}W_{k\hat \alpha}=
+\sum_{j,k,\alpha} U_{\hat i\alpha}V_{j\alpha}W_{k\alpha}V_{j\hat \alpha}
+W_{k,\hat \alpha},
+\end{equation*}
+\end{frame}
+\begin{frame}
+\frametitle{Формулы ALS}
+\label{sec-1-15}
+
+Обозначим через M$_{\alpha \hat \alpha}$
+матрицу с элементами
+\begin{equation}\label{curs:lev}
+M_{\alpha,\hat \alpha} = (\sum_{j}V_{j,\alpha}
+V_{j\hat \alpha}) (\sum_{k}W_{k\alpha}W_{k\hat \alpha});
+\end{equation}
+тогда
+\begin{equation}\label{curs:prav}
+\sum_{\alpha} U_{\hat i, \alpha}M_{\alpha,\hat \alpha} = 
+\sum_{j,k} A_{\hat i,j,k}V_{j, \hat \alpha}W_{k,\hat \alpha};
+\end{equation}
+Через  F$_{\mathrm{i,\hat \alpha}}$ обозначим правую часть. Тогда, имеем
+\begin{equation}
+\sum_{\alpha} U_{\hat i \alpha}M_{\alpha \hat \alpha}=F_{i \hat \alpha}.
+\end{equation}
+\end{frame}
+\begin{frame}
+\frametitle{В виде системы}
+\label{sec-1-16}
+
+или в виде системы линейных уравнений
+
+\begin{equation}\label{curs:q5}
+U M = F.
+\end{equation}
+где $M \in \mathbb{R}^{r \times r}$. 
+\end{frame}
+\section{Используемые платформы}
+\label{sec-2}
+\begin{frame}
+
+В ходе экспериментов использовались следующие платформы:
+\begin{itemize}
+\item Мобильная видеокарта NVIDIA
+\item Мобильный процессор Intel Core i5
+\item Кластер Tesla ИВМ РАН
+\end{itemize}
+\end{frame}
+\begin{frame}
+\frametitle{Характеристики Tesla}
+\label{sec-2-2}
+
+
+\begin{center}
+\begin{tabular}{lll}
+ Device Tesla C2070                &                      &     \\
+ NAME:                             &  Tesla C2070         &     \\
+ VENDOR:                           &  NVIDIA Corporation  &     \\
+ VERSION:                          &  304.54              &     \\
+ VERSION:                          &  OpenCL 1.1 CUDA     &     \\
+ OPENCL\_{} C\_{} VERSION:         &  OpenCL C 1.1        &     \\
+ MAX\_{} WORK\_{} GROUP\_{} SIZE:  &  1024                &     \\
+ ADDRESS\_{} BITS:                 &  32                  &     \\
+ MAX\_{} MEM\_{} ALLOC\_{} SIZE:   &  1343 MByte          &     \\
+ GLOBAL\_{} MEM\_{} SIZE:          &  5375 MByte          &     \\
+\end{tabular}
+\end{center}
+\end{frame}
+\section{Численные эксперименты}
+\label{sec-3}
+\begin{frame}
+\frametitle{Таблицы времен}
+\label{sec-3-1}
+
+Для фиксированного ранга $r=3$ и размерности тензора $n$ исследована скорость выполнения как отдельных ядер, 
+так и всего алгоритма ALS. Однако ALS алгоритм не гарантирует сходимость, только
+убывание невязки, поэтому будем указывать только время выполнения одной итерации.
+Приведем таблицу с временем выполнения.
+
+\begin{center}
+\begin{tabular}{lrrrr}
+ размер n              &         128  &         256  &       512  &       756  \\
+ t$_r$                 &    0.013803  &     0.08674  &   0.65225  &   0.92513  \\
+ t$_l$                 &  0.00035595  &   0.0004210  &  0.000552  &  0.000673  \\
+ t$_{\mathrm{solve}}$  &  0.00025391  &  0.00025510  &  0.000256  &  0.000256  \\
+ LU                    &  0.00024890  &   0.0002851  &   0.00035  &  0.000391  \\
+ T$_i$                 &    0.026740  &      0.1834  &   1.08289  &   1.92985  \\
+\end{tabular}
+\end{center}
+\end{frame}
+\begin{frame}
+
+Приведем также таблицу с временем выполнения одной итерации программы, вычисления
+правой части в зависимости от ранга $r$ и фиксированной размерности тензора $n=128$
+
+\begin{center}
+\begin{tabular}{lrrrr}
+ ранг r  &        3  &       6  &      10  &      20  \\
+ t$_r$   &  0.01380  &  0.0152  &  0.0162  &  0.0184  \\
+ T$_i$   &  0.04326  &  0.0437  &  0.0468  &  0.0556  \\
+\end{tabular}
+\end{center}
+\end{frame}
+\begin{frame}
+\frametitle{График}
+\label{sec-3-3}
+
+Для наглядности также построим графики поведения времени вычисления правой части
+на CPU, мобильном GPU и Tesla:
+
+\begin{center}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=8cm]{plot.pdf}
+\caption{Зависимость времени выполнения одной итерации от размера $n$.На графике синяя линия соответствует мобильному GPU, зеленая CPU, красная Tesla. Обрывы линий означают, что тензор большего размера уже не помещается в память.}
+\end{figure}
+\end{center}
+\end{frame}
+\section{Выводы и планы}
+\label{sec-4}
+
+В ходе выполениния курсововй работы были получены следующие результаты:
+\begin{enumerate}
+\item Изучен пакет автоматической генерации OpenCL-кода
+\item Реализованы алгоритмы:
+\begin{itemize}
+\item LU-разложения, решения систем в стандартном виде LU
+\item подсчета правой части алгоритма ALS
+\item ALS-алгоритм
+\end{itemize}
+\end{enumerate}
+\begin{frame}
+\frametitle{Важные выводы}
+\label{sec-4-1}
+
+Ключенвые выводы:
+\begin{enumerate}
+\item Генерировать OpenCL код можно автоматически
+\item Сильно экономится время, а качество реализации не страдает
+\item Можно избежать ошибок ``технического'' характера
+\item Можно параллелить произвольный алгоритм, записанный в нужном формате
+\end{enumerate}
+\end{frame}
+\begin{frame}
+\frametitle{Вопросы}
+\label{sec-4-2}
+
+Спасибо за внимание!
+Ваши вопросы?
+\end{frame}
+
+\end{document}
