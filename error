@@ -1,46 +1,76 @@
----------------------------------------------------------------------------
-NameError                                 Traceback (most recent call last)
-<ipython-input-198-9442c08f0312> in <module>()
-     10 
-     11 
----> 12 knl = LU_decomposition(ctx)
-     13 queue = cl.CommandQueue(ctx,properties=cl.command_queue_properties.PROFILING_ENABLE)
-     14 cknl = lp.CompiledKernel(ctx, knl)
+#error connected with "auto" dtype
+TypeError                                 Traceback (most recent call last)
+/usr/local/lib/python2.7/dist-packages/IPython/utils/py3compat.py in execfile(fname, *where)
+    181             else:
+    182                 filename = fname
+--> 183             __builtin__.execfile(filename, *where)
 
-<ipython-input-197-68aad61b4251> in LU_decomposition(ctx)
-     15   lp.ValueArg("n", np.int32),
-     16   ],
----> 17   assumptions="n>=1")
-     18 #  knl = lp.split_iname(knl, "k", 1)
-     19 #  knl = lp.split_iname(knl, "i", 1)
+/home/earendilllock/loopycurs/to_issues.py in <module>()
+     84 
+     85 
+---> 86 knl_r_U = Prav_U(ctx)
+     87 knl_r_V = Prav_V(ctx)
+     88 
 
-/usr/local/lib/python2.7/dist-packages/loopy-2011.1alpha-py2.7.egg/loopy/kernel/creation.pyc in make_kernel(device, domains, instructions, kernel_args, **kwargs)
-    868         instructions = [instructions]
-    869     for insn in instructions:
---> 870         for new_insn in parse_if_necessary(insn, defines):
-    871             if isinstance(new_insn, Instruction):
-    872                 parsed_instructions.append(new_insn)
+/home/earendilllock/loopycurs/to_issues.py in Prav_U(ctx)
+     22   ],
+     23   [
+---> 24     lp.GlobalArg("a", "auto", shape="n, n, n", order=order),
+     25     lp.GlobalArg("v", "auto", shape="r, n", order=order),
+     26     lp.GlobalArg("w", "auto", shape="r, n", order=order),
 
-/usr/local/lib/python2.7/dist-packages/loopy-2011.1alpha-py2.7.egg/loopy/kernel/creation.pyc in parse_if_necessary(insn, defines)
+/usr/local/lib/python2.7/dist-packages/loo.py-2013.1beta-py2.7.egg/loopy/kernel/data.pyc in __init__(self, name, dtype, shape, strides, order, offset)
+    169         """
+    170         if dtype is not None:
+--> 171             dtype = np.dtype(dtype)
+    172 
+    173         def parse_if_necessary(x):
+
+TypeError: data type not understood
+
+
+#error connected with no args (it might be just misanderstanding)
+
+AttributeError                            Traceback (most recent call last)
+/usr/local/lib/python2.7/dist-packages/IPython/utils/py3compat.py in execfile(fname, *where)
+    181             else:
+    182                 filename = fname
+--> 183             __builtin__.execfile(filename, *where)
+
+/home/earendilllock/loopycurs/to_issues.py in <module>()
+     80 
+     81 #cknl_r_U = lp.CompiledKernel(ctx, knl_r_U)
+---> 82 cknl_r_V = lp.CompiledKernel(ctx, knl_r_V)
+     83 
+     84 cknl_solve = lp.CompiledKernel(ctx, solve_knl)
+
+/usr/local/lib/python2.7/dist-packages/loo.py-2013.1beta-py2.7.egg/loopy/compiled.pyc in __init__(self, context, kernel, size_args, options, edit_code, codegen_kwargs)
+     91             kernel_count = 0
+     92 
+---> 93             for scheduled_kernel in kernel:
+     94                 kernel_count += 1
+     95 
+
+/usr/local/lib/python2.7/dist-packages/loo.py-2013.1beta-py2.7.egg/loopy/schedule.pyc in generate_loop_schedules(kernel, loop_priority, debug_args)
+    790 def generate_loop_schedules(kernel, loop_priority=[], debug_args={}):
+    791     from loopy.preprocess import preprocess_kernel
+--> 792     kernel = preprocess_kernel(kernel)
+    793 
+    794     from loopy.check import run_automatic_checks
+
+/usr/local/lib/python2.7/dist-packages/loo.py-2013.1beta-py2.7.egg/loopy/preprocess.pyc in preprocess_kernel(kernel)
+    918     # to be able to determine the types of the reduced expressions.
+    919 
+--> 920     kernel = realize_reduction(kernel)
+    921 
+    922     # Ordering restriction:
+
+/usr/local/lib/python2.7/dist-packages/loo.py-2013.1beta-py2.7.egg/loopy/preprocess.pyc in realize_reduction(kernel, insn_id_filter)
+    313 
+    314         # Run reduction expansion.
+--> 315         new_expression = cb_mapper(insn.expression)
     316 
-    317         for sub_insn in expand_defines(insn, defines, single_valued=False):
---> 318             yield parse_insn(sub_insn)
-    319 
-    320 # }}}
-
-/usr/local/lib/python2.7/dist-packages/loopy-2011.1alpha-py2.7.egg/loopy/kernel/creation.pyc in parse_insn(insn)
-    217 
-    218     from loopy.symbolic import parse
---> 219     lhs = parse(groups["lhs"])
-    220     rhs = parse(groups["rhs"])
-    221 
-
-/usr/local/lib/python2.7/dist-packages/loopy-2011.1alpha-py2.7.egg/loopy/symbolic.pyc in parse(expr_str)
-    661 def parse(expr_str):
-    662     return VarToTaggedVarMapper()(
---> 663             FunctionToPrimitiveMapper()(LoopyParser()(expr_str)))
-    664 
-    665 # }}}
+    317         insn = insn.copy(
 
 /usr/local/lib/python2.7/dist-packages/pymbolic-2013.2-py2.7.egg/pymbolic/mapper/__init__.pyc in __call__(self, expr, *args, **kwargs)
      40                     return self.map_foreign(expr, *args, **kwargs)
@@ -49,26 +79,47 @@ NameError                                 Traceback (most recent call last)
      43 
      44     def map_variable(self, expr, *args):
 
-/usr/local/lib/python2.7/dist-packages/pymbolic-2013.2-py2.7.egg/pymbolic/mapper/__init__.pyc in map_slice(self, expr, *args)
-    284 
-    285         return type(expr)(
---> 286                 tuple(do_map(ch) for ch in expr.children))
-    287 
-    288     def map_if_positive(self, expr, *args):
+/usr/local/lib/python2.7/dist-packages/loo.py-2013.1beta-py2.7.egg/loopy/symbolic.pyc in map_reduction(self, expr)
+    856 
+    857     def map_reduction(self, expr):
+--> 858         result = self.callback(expr, self.rec)
+    859         if result is None:
+    860             return IdentityMapper.map_reduction(self, expr)
 
-/usr/local/lib/python2.7/dist-packages/pymbolic-2013.2-py2.7.egg/pymbolic/mapper/__init__.pyc in <genexpr>((ch,))
-    284 
-    285         return type(expr)(
---> 286                 tuple(do_map(ch) for ch in expr.children))
-    287 
-    288     def map_if_positive(self, expr, *args):
+/usr/local/lib/python2.7/dist-packages/loo.py-2013.1beta-py2.7.egg/loopy/preprocess.pyc in map_reduction(expr, rec)
+    245         target_var = var(target_var_name)
+    246 
+--> 247         arg_dtype = type_inf_mapper(expr.expr)
+    248 
+    249         from loopy.kernel.data import Instruction, TemporaryVariable
 
-/usr/local/lib/python2.7/dist-packages/pymbolic-2013.2-py2.7.egg/pymbolic/mapper/__init__.pyc in do_map(expr)
-    281                 return expr
-    282             else:
---> 283                 return self.rec(ch, *args)
-    284 
-    285         return type(expr)(
+/usr/local/lib/python2.7/dist-packages/pymbolic-2013.2-py2.7.egg/pymbolic/mapper/__init__.pyc in __call__(self, expr, *args, **kwargs)
+     40                     return self.map_foreign(expr, *args, **kwargs)
+     41 
+---> 42         return method(expr, *args, **kwargs)
+     43 
+     44     def map_variable(self, expr, *args):
 
-NameError: global name 'ch' is not defined
+/usr/local/lib/python2.7/dist-packages/loo.py-2013.1beta-py2.7.egg/loopy/codegen/expression.pyc in map_sum(self, expr)
+     89 
+     90         from pytools import all
+---> 91         if all(dtype.kind == "i" for dtype in dtypes):
+     92             dtypes.extend(small_integer_dtypes)
+     93 
+
+/usr/local/lib/python2.7/dist-packages/pytools-2012.1-py2.7.egg/pytools/__init__.py in all(iterable)
+    658 except AttributeError:
+    659     def all(iterable):
+--> 660         for i in iterable:
+    661             if not i:
+    662                 return False
+
+/usr/local/lib/python2.7/dist-packages/loo.py-2013.1beta-py2.7.egg/loopy/codegen/expression.pyc in <genexpr>((dtype,))
+     89 
+     90         from pytools import all
+---> 91         if all(dtype.kind == "i" for dtype in dtypes):
+     92             dtypes.extend(small_integer_dtypes)
+     93 
+
+AttributeError: 'NoneType' object has no attribute 'kind'
 

@@ -1,0 +1,74 @@
+---------------------------------------------------------------------------
+NameError                                 Traceback (most recent call last)
+<ipython-input-198-9442c08f0312> in <module>()
+     10 
+     11 
+---> 12 knl = LU_decomposition(ctx)
+     13 queue = cl.CommandQueue(ctx,properties=cl.command_queue_properties.PROFILING_ENABLE)
+     14 cknl = lp.CompiledKernel(ctx, knl)
+
+<ipython-input-197-68aad61b4251> in LU_decomposition(ctx)
+     15   lp.ValueArg("n", np.int32),
+     16   ],
+---> 17   assumptions="n>=1")
+     18 #  knl = lp.split_iname(knl, "k", 1)
+     19 #  knl = lp.split_iname(knl, "i", 1)
+
+/usr/local/lib/python2.7/dist-packages/loopy-2011.1alpha-py2.7.egg/loopy/kernel/creation.pyc in make_kernel(device, domains, instructions, kernel_args, **kwargs)
+    868         instructions = [instructions]
+    869     for insn in instructions:
+--> 870         for new_insn in parse_if_necessary(insn, defines):
+    871             if isinstance(new_insn, Instruction):
+    872                 parsed_instructions.append(new_insn)
+
+/usr/local/lib/python2.7/dist-packages/loopy-2011.1alpha-py2.7.egg/loopy/kernel/creation.pyc in parse_if_necessary(insn, defines)
+    316 
+    317         for sub_insn in expand_defines(insn, defines, single_valued=False):
+--> 318             yield parse_insn(sub_insn)
+    319 
+    320 # }}}
+
+/usr/local/lib/python2.7/dist-packages/loopy-2011.1alpha-py2.7.egg/loopy/kernel/creation.pyc in parse_insn(insn)
+    217 
+    218     from loopy.symbolic import parse
+--> 219     lhs = parse(groups["lhs"])
+    220     rhs = parse(groups["rhs"])
+    221 
+
+/usr/local/lib/python2.7/dist-packages/loopy-2011.1alpha-py2.7.egg/loopy/symbolic.pyc in parse(expr_str)
+    661 def parse(expr_str):
+    662     return VarToTaggedVarMapper()(
+--> 663             FunctionToPrimitiveMapper()(LoopyParser()(expr_str)))
+    664 
+    665 # }}}
+
+/usr/local/lib/python2.7/dist-packages/pymbolic-2013.2-py2.7.egg/pymbolic/mapper/__init__.pyc in __call__(self, expr, *args, **kwargs)
+     40                     return self.map_foreign(expr, *args, **kwargs)
+     41 
+---> 42         return method(expr, *args, **kwargs)
+     43 
+     44     def map_variable(self, expr, *args):
+
+/usr/local/lib/python2.7/dist-packages/pymbolic-2013.2-py2.7.egg/pymbolic/mapper/__init__.pyc in map_slice(self, expr, *args)
+    284 
+    285         return type(expr)(
+--> 286                 tuple(do_map(ch) for ch in expr.children))
+    287 
+    288     def map_if_positive(self, expr, *args):
+
+/usr/local/lib/python2.7/dist-packages/pymbolic-2013.2-py2.7.egg/pymbolic/mapper/__init__.pyc in <genexpr>((ch,))
+    284 
+    285         return type(expr)(
+--> 286                 tuple(do_map(ch) for ch in expr.children))
+    287 
+    288     def map_if_positive(self, expr, *args):
+
+/usr/local/lib/python2.7/dist-packages/pymbolic-2013.2-py2.7.egg/pymbolic/mapper/__init__.pyc in do_map(expr)
+    281                 return expr
+    282             else:
+--> 283                 return self.rec(ch, *args)
+    284 
+    285         return type(expr)(
+
+NameError: global name 'ch' is not defined
+
